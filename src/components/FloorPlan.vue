@@ -1,5 +1,6 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
+import * as XLSX from 'xlsx'
 
 // 组件属性定义，接收父组件传递的配置数据
 const props = defineProps({
@@ -25,6 +26,21 @@ const canvasRef = ref(null)
 
 // 座位数据数组，存储所有生成的座位信息
 const seats = ref([])
+
+// 嘉宾数据数组，存储从Excel导入的嘉宾信息
+const guests = ref([])
+
+// 分区颜色映射，为每个分区分配唯一颜色
+const sectionColors = ref({})
+
+// 当前选中的座位ID
+const selectedSeatId = ref(null)
+
+// 拖拽相关状态
+const dragSourceSeatId = ref(null)
+const dragTargetSeatId = ref(null)
+const isDraggingSeat = ref(false)
+const dragPosition = ref({ x: 0, y: 0 })
 
 // 画布缩放比例，默认1.0
 const zoom = ref(1.0)
@@ -115,6 +131,22 @@ function updateCanvasSize() {
 function generateSeats() {
   // 确保画布大小已更新
   updateCanvasSize()
+  
+  // 创建现有座位状态映射，用于保留座位状态（如占用、嘉宾信息等）
+  const existingSeatsMap = {}
+  seats.value.forEach(seat => {
+    existingSeatsMap[seat.id] = {
+      occupied: seat.occupied,
+      vip: seat.vip,
+      guestId: seat.guestId,
+      guestNumber: seat.guestNumber,
+      guestName: seat.guestName,
+      guestUnit: seat.guestUnit,
+      assignedSection: seat.assignedSection,
+      sectionColor: seat.sectionColor,
+      isSelected: seat.isSelected
+    }
+  })
   
   // 新的座位数组，用于存储生成的座位
   let newSeats = []
@@ -263,17 +295,27 @@ function generateSeats() {
         for (let seatInBlock = 0; seatInBlock < seatsInBlock; seatInBlock++) {
           const seatX = currentX + seatInBlock * seatUnitWidth
           
+          const seatId = `S${sectionIndex + 1}-R${row + 1}-${seatCol}`
+          const existingState = existingSeatsMap[seatId]
+          
           newSeats.push({
-            id: `S${sectionIndex + 1}-R${row + 1}-${seatCol}`,
+            id: seatId,
             x: seatX,
             y: rowY,
             width: seatWidth,
             height: seatLength,
-            occupied: Math.random() > 0.7,
-            vip: false,
+            occupied: existingState ? existingState.occupied : Math.random() > 0.7,
+            vip: existingState ? existingState.vip : false,
             section: section.name,
             row: row + 1,
-            col: seatCol
+            col: seatCol,
+            guestId: existingState ? existingState.guestId : null,
+            guestNumber: existingState ? existingState.guestNumber : null,
+            guestName: existingState ? existingState.guestName : null,
+            guestUnit: existingState ? existingState.guestUnit : null,
+            assignedSection: existingState ? existingState.assignedSection : null,
+            sectionColor: existingState ? existingState.sectionColor : null,
+            isSelected: existingState ? existingState.isSelected : false
           })
           
           seatCol++
@@ -319,17 +361,27 @@ function generateSeats() {
             for (let seatInBlock = 0; seatInBlock < seatsInBlock; seatInBlock++) {
               const seatX = currentX + seatInBlock * seatUnitWidth
               
+              const seatId = `S${sectionIndex + 1}-R${row + 1}-${seatCol}`
+              const existingState = existingSeatsMap[seatId]
+              
               newSeats.push({
-                id: `S${sectionIndex + 1}-R${row + 1}-${seatCol}`,
+                id: seatId,
                 x: seatX,
                 y: rowY,
                 width: seatWidth,
                 height: seatLength,
-                occupied: Math.random() > 0.7,
-                vip: false,
+                occupied: existingState ? existingState.occupied : Math.random() > 0.7,
+                vip: existingState ? existingState.vip : false,
                 section: section.name,
                 row: row + 1,
-                col: seatCol
+                col: seatCol,
+                guestId: existingState ? existingState.guestId : null,
+                guestNumber: existingState ? existingState.guestNumber : null,
+                guestName: existingState ? existingState.guestName : null,
+                guestUnit: existingState ? existingState.guestUnit : null,
+                assignedSection: existingState ? existingState.assignedSection : null,
+                sectionColor: existingState ? existingState.sectionColor : null,
+                isSelected: existingState ? existingState.isSelected : false
               })
               
               seatCol++
@@ -354,17 +406,27 @@ function generateSeats() {
           for (let seatInBlock = 0; seatInBlock < bestSeatCount; seatInBlock++) {
             const seatX = sectionLeft + seatInBlock * (seatWidth + spacingBetweenSeats)
             
+            const seatId = `S${sectionIndex + 1}-R${row + 1}-${seatCol}`
+            const existingState = existingSeatsMap[seatId]
+            
             newSeats.push({
-              id: `S${sectionIndex + 1}-R${row + 1}-${seatCol}`,
+              id: seatId,
               x: seatX,
               y: rowY,
               width: seatWidth,
               height: seatLength,
-              occupied: Math.random() > 0.7,
-              vip: false,
+              occupied: existingState ? existingState.occupied : Math.random() > 0.7,
+              vip: existingState ? existingState.vip : false,
               section: section.name,
               row: row + 1,
-              col: seatCol
+              col: seatCol,
+              guestId: existingState ? existingState.guestId : null,
+              guestNumber: existingState ? existingState.guestNumber : null,
+              guestName: existingState ? existingState.guestName : null,
+              guestUnit: existingState ? existingState.guestUnit : null,
+              assignedSection: existingState ? existingState.assignedSection : null,
+              sectionColor: existingState ? existingState.sectionColor : null,
+              isSelected: existingState ? existingState.isSelected : false
             })
             
             seatCol++
@@ -375,17 +437,27 @@ function generateSeats() {
           // 单区块单座位：居中或左对齐
           const seatX = sectionLeft
           
+          const seatId = `S${sectionIndex + 1}-R${row + 1}-1`
+          const existingState = existingSeatsMap[seatId]
+          
           newSeats.push({
-            id: `S${sectionIndex + 1}-R${row + 1}-1`,
+            id: seatId,
             x: seatX,
             y: rowY,
             width: seatWidth,
             height: seatLength,
-            occupied: Math.random() > 0.7,
-            vip: false,
+            occupied: existingState ? existingState.occupied : Math.random() > 0.7,
+            vip: existingState ? existingState.vip : false,
             section: section.name,
             row: row + 1,
-            col: 1
+            col: 1,
+            guestId: existingState ? existingState.guestId : null,
+            guestNumber: existingState ? existingState.guestNumber : null,
+            guestName: existingState ? existingState.guestName : null,
+            guestUnit: existingState ? existingState.guestUnit : null,
+            assignedSection: existingState ? existingState.assignedSection : null,
+            sectionColor: existingState ? existingState.sectionColor : null,
+            isSelected: existingState ? existingState.isSelected : false
           })
           
           currentX = sectionLeft + seatWidth
@@ -452,14 +524,28 @@ function drawSeats() {
   const roomEndX = offsetXWithZoom + roomWidthPx * finalScale
   const roomEndY = offsetYWithZoom + roomLengthPx * finalScale
   
-  // 绘制会议室边框
-  ctx.strokeStyle = '#666'
-  ctx.lineWidth = 2
-  ctx.strokeRect(roomStartX, roomStartY, roomWidthPx * finalScale, roomLengthPx * finalScale)
+  // 绘制会议室背景（轻拟物风格）
+  const roomWidthPxScaled = roomWidthPx * finalScale
+  const roomLengthPxScaled = roomLengthPx * finalScale
   
-  // 绘制会议室背景
-  ctx.fillStyle = 'rgba(240, 240, 240, 0.3)'
-  ctx.fillRect(roomStartX, roomStartY, roomWidthPx * finalScale, roomLengthPx * finalScale)
+  // 创建会议室背景渐变
+  const roomGradient = ctx.createLinearGradient(roomStartX, roomStartY, roomStartX, roomStartY + roomLengthPxScaled)
+  roomGradient.addColorStop(0, '#f5f7fa')
+  roomGradient.addColorStop(0.5, '#eef2f6')
+  roomGradient.addColorStop(1, '#e4eaf2')
+  
+  ctx.fillStyle = roomGradient
+  ctx.fillRect(roomStartX, roomStartY, roomWidthPxScaled, roomLengthPxScaled)
+  
+  // 绘制会议室边框（轻拟物风格）
+  ctx.strokeStyle = '#d1d9e6'
+  ctx.lineWidth = 3
+  ctx.strokeRect(roomStartX, roomStartY, roomWidthPxScaled, roomLengthPxScaled)
+  
+  // 添加内阴影效果
+  ctx.strokeStyle = '#ffffff'
+  ctx.lineWidth = 1
+  ctx.strokeRect(roomStartX + 1, roomStartY + 1, roomWidthPxScaled - 2, roomLengthPxScaled - 2)
   
   if (props.stageSettings.exists) {
     const stageWidth = props.stageSettings.width * scale * finalScale
@@ -488,17 +574,36 @@ function drawSeats() {
         stageY = offsetYWithZoom
     }
     
-    ctx.fillStyle = 'rgba(255, 215, 0, 0.3)'
+    // 创建舞台渐变（轻拟物风格）
+    const stageGradient = ctx.createLinearGradient(stageX, stageY, stageX, stageY + stageLength)
+    stageGradient.addColorStop(0, 'rgba(255, 215, 0, 0.4)')
+    stageGradient.addColorStop(0.5, 'rgba(255, 215, 0, 0.5)')
+    stageGradient.addColorStop(1, 'rgba(255, 215, 0, 0.3)')
+    
+    ctx.fillStyle = stageGradient
     ctx.fillRect(stageX, stageY, stageWidth, stageLength)
-    ctx.strokeStyle = '#d48806'
-    ctx.lineWidth = 1.5
+    
+    // 舞台边框（外阴影）
+    ctx.strokeStyle = '#b8860b'
+    ctx.lineWidth = 2.5
     ctx.strokeRect(stageX, stageY, stageWidth, stageLength)
     
-    ctx.fillStyle = '#333'
-    ctx.font = 'bold 14px Arial'
+    // 舞台边框（内高光）
+    ctx.strokeStyle = '#ffd700'
+    ctx.lineWidth = 1
+    ctx.strokeRect(stageX + 1, stageY + 1, stageWidth - 2, stageLength - 2)
+    
+    // 舞台文字
+    ctx.fillStyle = '#ffffff'
+    ctx.font = 'bold 16px Arial'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)'
+    ctx.shadowBlur = 3
+    ctx.shadowOffsetX = 1
+    ctx.shadowOffsetY = 1
     ctx.fillText('舞台', stageX + stageWidth / 2, stageY + stageLength / 2)
+    ctx.shadowColor = 'transparent'
   }
   
   // 绘制所有座位
@@ -506,27 +611,109 @@ function drawSeats() {
   const shouldDrawText = totalSeats < 1000  // 座位过多时不绘制文字
   
   seats.value.forEach(seat => {
-    ctx.fillStyle = seat.occupied ? '#f56c6c' : '#67c23a'
+    // 获取座位颜色
+    const colors = getSeatColor(seat)
+    
+    // 创建座位渐变
+    const seatGradient = ctx.createLinearGradient(seat.x, seat.y, seat.x, seat.y + seat.height)
+    seatGradient.addColorStop(0, colors.light)
+    seatGradient.addColorStop(0.5, colors.base)
+    seatGradient.addColorStop(1, colors.dark)
+    
+    ctx.fillStyle = seatGradient
     ctx.fillRect(seat.x, seat.y, seat.width, seat.height)
     
-    ctx.strokeStyle = '#333'
-    ctx.lineWidth = 0.5
+    // 座位边框（外阴影）
+    ctx.strokeStyle = colors.dark
+    ctx.lineWidth = 1.5
     ctx.strokeRect(seat.x, seat.y, seat.width, seat.height)
     
-    // 只在座位数量不多或座位足够大时绘制座位号
+    // 座位边框（内高光）
+    ctx.strokeStyle = colors.light
+    ctx.lineWidth = 0.5
+    ctx.strokeRect(seat.x + 1, seat.y + 1, seat.width - 2, seat.height - 2)
+    
+    // 选中状态高亮
+    if (seat.id === selectedSeatId.value) {
+      ctx.strokeStyle = '#ffd700'
+      ctx.lineWidth = 3
+      ctx.strokeRect(seat.x - 2, seat.y - 2, seat.width + 4, seat.height + 4)
+    }
+    
+    // 只在座位数量不多或座位足够大时绘制文本
     if (shouldDrawText && seat.width > 15) {
-      ctx.fillStyle = '#fff'
-      ctx.font = '10px Arial'
+      ctx.fillStyle = '#ffffff'
+      ctx.font = 'bold 11px Arial'
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      const seatNumber = seat.col
-      ctx.fillText(seatNumber, seat.x + seat.width / 2, seat.y + seat.height / 2)
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.3)'
+      ctx.shadowBlur = 2
+      ctx.shadowOffsetX = 1
+      ctx.shadowOffsetY = 1
+      
+      // 显示嘉宾编号或座位号
+      const displayText = seat.guestNumber || seat.col.toString()
+      ctx.fillText(displayText, seat.x + seat.width / 2, seat.y + seat.height / 2)
+      ctx.shadowColor = 'transparent'
     }
   })
   
-  ctx.strokeStyle = '#409eff'
-  ctx.lineWidth = 1
-  ctx.setLineDash([5, 3])
+  // 绘制座位拖拽预览效果
+  if (isDraggingSeat.value && dragSourceSeatId.value) {
+    const sourceSeat = seats.value.find(seat => seat.id === dragSourceSeatId.value)
+    if (sourceSeat) {
+      // 绘制拖拽连接线
+      ctx.beginPath()
+      ctx.moveTo(sourceSeat.x + sourceSeat.width / 2, sourceSeat.y + sourceSeat.height / 2)
+      ctx.lineTo(dragPosition.value.x, dragPosition.value.y)
+      ctx.strokeStyle = 'rgba(64, 158, 255, 0.7)'
+      ctx.lineWidth = 2
+      ctx.setLineDash([5, 3])
+      ctx.stroke()
+      ctx.setLineDash([])
+      
+      // 绘制拖拽预览座位（半透明）
+      const previewSize = Math.max(sourceSeat.width, sourceSeat.height) * 0.9
+      const previewX = dragPosition.value.x - previewSize / 2
+      const previewY = dragPosition.value.y - previewSize / 2
+      
+      // 座位渐变
+      const colors = getSeatColor(sourceSeat)
+      const previewGradient = ctx.createLinearGradient(previewX, previewY, previewX, previewY + previewSize)
+      previewGradient.addColorStop(0, colors.light.replace(')', ', 0.7)').replace('rgb', 'rgba'))
+      previewGradient.addColorStop(0.5, colors.base.replace(')', ', 0.7)').replace('rgb', 'rgba'))
+      previewGradient.addColorStop(1, colors.dark.replace(')', ', 0.7)').replace('rgb', 'rgba'))
+      
+      ctx.fillStyle = previewGradient
+      ctx.fillRect(previewX, previewY, previewSize, previewSize)
+      
+      // 预览座位边框
+      ctx.strokeStyle = colors.dark.replace(')', ', 0.8)').replace('rgb', 'rgba')
+      ctx.lineWidth = 2
+      ctx.strokeRect(previewX, previewY, previewSize, previewSize)
+      
+      // 预览座位内边框
+      ctx.strokeStyle = colors.light.replace(')', ', 0.9)').replace('rgb', 'rgba')
+      ctx.lineWidth = 1
+      ctx.strokeRect(previewX + 1, previewY + 1, previewSize - 2, previewSize - 2)
+      
+      // 显示嘉宾编号
+      if (sourceSeat.guestNumber) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
+        ctx.font = 'bold 14px Arial'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)'
+        ctx.shadowBlur = 3
+        ctx.fillText(sourceSeat.guestNumber, previewX + previewSize / 2, previewY + previewSize / 2)
+        ctx.shadowColor = 'transparent'
+      }
+    }
+  }
+  
+  ctx.strokeStyle = '#337ecc'
+  ctx.lineWidth = 1.2
+  ctx.setLineDash([6, 4])
   
   let currentY = offsetYWithZoom
   
@@ -548,10 +735,24 @@ function drawSeats() {
     const seatSpacingY = section.seatFrontBackSpacing * scale * finalScale
     const sectionHeight = (section.rows * seatLength) + ((section.rows - 1) * seatSpacingY)
     
+    // 分区背景渐变（轻拟物风格）
+    const sectionGradient = ctx.createLinearGradient(sectionLeft, currentY, sectionLeft, currentY + sectionHeight)
+    sectionGradient.addColorStop(0, 'rgba(64, 158, 255, 0.08)')
+    sectionGradient.addColorStop(0.5, 'rgba(64, 158, 255, 0.12)')
+    sectionGradient.addColorStop(1, 'rgba(64, 158, 255, 0.05)')
+    
+    ctx.fillStyle = sectionGradient
+    ctx.fillRect(sectionLeft, currentY, sectionWidth, sectionHeight)
+    
+    // 分区边框（外阴影）
+    ctx.strokeStyle = '#337ecc'
+    ctx.lineWidth = 1.5
     ctx.strokeRect(sectionLeft, currentY, sectionWidth, sectionHeight)
     
-    ctx.fillStyle = 'rgba(64, 158, 255, 0.05)'
-    ctx.fillRect(sectionLeft, currentY, sectionWidth, sectionHeight)
+    // 分区边框（内高光）
+    ctx.strokeStyle = '#85c8ff'
+    ctx.lineWidth = 0.5
+    ctx.strokeRect(sectionLeft + 1, currentY + 1, sectionWidth - 2, sectionHeight - 2)
     
     currentY += sectionHeight
   })
@@ -565,7 +766,16 @@ function drawSeats() {
 function resetSeats() {
   seats.value.forEach(seat => {
     seat.occupied = false
+    seat.guestId = null
+    seat.guestNumber = null
+    seat.guestName = null
+    seat.guestUnit = null
+    seat.assignedSection = null
+    seat.sectionColor = null
   })
+  guests.value = []
+  sectionColors.value = {}
+  selectedSeatId.value = null
   drawSeats()
 }
 
@@ -634,43 +844,155 @@ function handleWheel(event) {
 }
 
 /**
- * 处理鼠标按下事件，开始画布拖拽
+ * 处理鼠标按下事件，开始画布拖拽或座位交互
  * @param {MouseEvent} event - 鼠标事件对象
  */
 function handleMouseDown(event) {
   event.preventDefault()
-  isDragging.value = true
-  lastMouseX.value = event.clientX
-  lastMouseY.value = event.clientY
+  
+  const canvas = canvasRef.value
+  if (!canvas) return
+  
+  const rect = canvas.getBoundingClientRect()
+  const mouseX = event.clientX - rect.left
+  const mouseY = event.clientY - rect.top
+  
+  // 查找点击的座位
+  const clickedSeat = seats.value.find(seat => 
+    mouseX >= seat.x && mouseX <= seat.x + seat.width &&
+    mouseY >= seat.y && mouseY <= seat.y + seat.height
+  )
+  
+  if (clickedSeat) {
+    // 点击座位，处理座位点击
+    if (event.shiftKey && clickedSeat.guestId) {
+      // Shift+点击：开始座位拖拽
+      dragSourceSeatId.value = clickedSeat.id
+      isDraggingSeat.value = true
+    } else {
+      // 普通点击：切换选中状态
+      if (selectedSeatId.value === clickedSeat.id) {
+        selectedSeatId.value = null
+      } else {
+        selectedSeatId.value = clickedSeat.id
+      }
+      drawSeats()
+    }
+  } else {
+    // 点击空白区域，开始画布拖拽
+    isDragging.value = true
+    lastMouseX.value = event.clientX
+    lastMouseY.value = event.clientY
+  }
 }
 
 /**
- * 处理鼠标移动事件，实现画布拖拽
- * 计算鼠标移动距离并更新画布偏移量
+ * 处理鼠标移动事件，实现画布拖拽或座位拖拽
+ * 计算鼠标移动距离并更新画布偏移量或处理座位拖拽
  * @param {MouseEvent} event - 鼠标事件对象
  */
 function handleMouseMove(event) {
-  if (!isDragging.value) return
-  event.preventDefault()
-  
-  const deltaX = event.clientX - lastMouseX.value
-  const deltaY = event.clientY - lastMouseY.value
-  
-  offsetX.value += deltaX
-  offsetY.value += deltaY
-  
-  lastMouseX.value = event.clientX
-  lastMouseY.value = event.clientY
-  
-  generateSeats()
+  if (isDragging.value) {
+    // 处理画布拖拽
+    event.preventDefault()
+    
+    const deltaX = event.clientX - lastMouseX.value
+    const deltaY = event.clientY - lastMouseY.value
+    
+    offsetX.value += deltaX
+    offsetY.value += deltaY
+    
+    lastMouseX.value = event.clientX
+    lastMouseY.value = event.clientY
+    
+    generateSeats()
+  } else if (isDraggingSeat.value) {
+    // 处理座位拖拽（视觉反馈）
+    event.preventDefault()
+    
+    const canvas = canvasRef.value
+    if (!canvas) return
+    
+    const rect = canvas.getBoundingClientRect()
+    const mouseX = event.clientX - rect.left
+    const mouseY = event.clientY - rect.top
+    
+    // 更新拖拽位置，用于视觉反馈
+    dragPosition.value = { x: mouseX, y: mouseY }
+    
+    // 触发重绘以显示拖拽效果
+    drawSeats()
+  }
 }
 
 /**
- * 处理鼠标释放事件，结束画布拖拽
+ * 处理鼠标释放事件，结束画布拖拽或座位拖拽
  * @param {MouseEvent} event - 鼠标事件对象
  */
 function handleMouseUp(event) {
   event.preventDefault()
+  
+  if (isDraggingSeat.value && dragSourceSeatId.value) {
+    // 处理座位拖拽结束
+    const canvas = canvasRef.value
+    if (!canvas) return
+    
+    const rect = canvas.getBoundingClientRect()
+    const mouseX = event.clientX - rect.left
+    const mouseY = event.clientY - rect.top
+    
+    // 查找目标座位
+    const targetSeat = seats.value.find(seat => 
+      mouseX >= seat.x && mouseX <= seat.x + seat.width &&
+      mouseY >= seat.y && mouseY <= seat.y + seat.height
+    )
+    
+    if (targetSeat && targetSeat.id !== dragSourceSeatId.value) {
+      // 交换嘉宾信息
+      const sourceSeat = seats.value.find(s => s.id === dragSourceSeatId.value)
+      if (sourceSeat) {
+        // 交换嘉宾信息
+        const tempGuestId = sourceSeat.guestId
+        const tempGuestNumber = sourceSeat.guestNumber
+        const tempGuestName = sourceSeat.guestName
+        const tempGuestUnit = sourceSeat.guestUnit
+        const tempAssignedSection = sourceSeat.assignedSection
+        const tempSectionColor = sourceSeat.sectionColor
+        
+        sourceSeat.guestId = targetSeat.guestId
+        sourceSeat.guestNumber = targetSeat.guestNumber
+        sourceSeat.guestName = targetSeat.guestName
+        sourceSeat.guestUnit = targetSeat.guestUnit
+        sourceSeat.assignedSection = targetSeat.assignedSection
+        sourceSeat.sectionColor = targetSeat.sectionColor
+        
+        targetSeat.guestId = tempGuestId
+        targetSeat.guestNumber = tempGuestNumber
+        targetSeat.guestName = tempGuestName
+        targetSeat.guestUnit = tempGuestUnit
+        targetSeat.assignedSection = tempAssignedSection
+        targetSeat.sectionColor = tempSectionColor
+        
+        // 更新嘉宾的座位ID
+        if (sourceSeat.guestId) {
+          const sourceGuest = guests.value.find(g => g.id === sourceSeat.guestId)
+          if (sourceGuest) sourceGuest.seatId = sourceSeat.id
+        }
+        
+        if (targetSeat.guestId) {
+          const targetGuest = guests.value.find(g => g.id === targetSeat.guestId)
+          if (targetGuest) targetGuest.seatId = targetSeat.id
+        }
+      }
+    }
+    
+    // 重置拖拽状态
+    isDraggingSeat.value = false
+    dragSourceSeatId.value = null
+    dragPosition.value = { x: 0, y: 0 }
+    drawSeats()
+  }
+  
   isDragging.value = false
 }
 
@@ -684,6 +1006,384 @@ function resetZoomAndPan() {
   offsetY.value = 0
   generateSeats()
 }
+
+/**
+ * 处理Excel文件上传
+ * @param {Event} event - 文件上传事件
+ */
+async function handleFileUpload(event) {
+  const file = event.target.files[0]
+  if (!file) return
+  
+  try {
+    const data = await parseExcelData(file)
+    guests.value = data
+    generateSectionColors()
+    assignGuestsToSeats()
+    drawSeats()
+  } catch (error) {
+    console.error('文件解析失败:', error)
+    alert('文件解析失败，请检查文件格式和内容')
+  }
+  
+  // 重置文件输入，允许重复上传相同文件
+  event.target.value = ''
+}
+
+/**
+ * 解析Excel文件数据
+ * @param {File} file - Excel文件对象
+ * @returns {Array} - 嘉宾数据数组
+ */
+function parseExcelData(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result)
+        const workbook = XLSX.read(data, { type: 'array' })
+        const firstSheetName = workbook.SheetNames[0]
+        const worksheet = workbook.Sheets[firstSheetName]
+        const jsonData = XLSX.utils.sheet_to_json(worksheet)
+        
+        // 验证必要字段
+        const guestsData = jsonData.map((row, index) => {
+          const number = row['编号'] || row['number'] || row['Number'] || `GUEST${index + 1}`
+          const section = row['座位分区'] || row['section'] || row['Section'] || '未分配'
+          
+          if (!number || !section) {
+            throw new Error(`第${index + 1}行缺少必要字段：编号或座位分区`)
+          }
+          
+          return {
+            id: `G${index + 1}`,
+            number: String(number),
+            name: row['姓名'] || row['name'] || row['Name'] || '',
+            unit: row['工作单位'] || row['unit'] || row['Unit'] || row['工作单位'] || '',
+            assignedSection: String(section),
+            seatId: null
+          }
+        })
+        
+        resolve(guestsData)
+      } catch (error) {
+        reject(error)
+      }
+    }
+    
+    reader.onerror = () => {
+      reject(new Error('文件读取失败'))
+    }
+    
+    reader.readAsArrayBuffer(file)
+  })
+}
+
+/**
+ * 生成分区颜色映射
+ * 为每个分区分配一个唯一的颜色
+ */
+function generateSectionColors() {
+  const colors = [
+    '#409eff', '#67c23a', '#e6a23c', '#f56c6c', '#909399',
+    '#337ecc', '#5daf34', '#b88230', '#d9363e', '#757575',
+    '#53a8ff', '#85ce61', '#ebb563', '#f78989', '#a6a9ad'
+  ]
+  
+  const uniqueSections = [...new Set(guests.value.map(g => g.assignedSection))]
+  
+  sectionColors.value = {}
+  uniqueSections.forEach((section, index) => {
+    sectionColors.value[section] = colors[index % colors.length]
+  })
+}
+
+/**
+ * 分配嘉宾到座位
+ * 按照分区信息将嘉宾安排到对应分区的座位上
+ * 如果某个分区座位不足，多出的嘉宾安排到下一个分区
+ */
+function assignGuestsToSeats() {
+  // 清空之前的分配
+  seats.value.forEach(seat => {
+    seat.guestId = null
+    seat.guestNumber = null
+    seat.guestName = null
+    seat.guestUnit = null
+    seat.assignedSection = null
+    seat.sectionColor = null
+  })
+  
+  // 重置嘉宾的座位ID
+  guests.value.forEach(guest => {
+    guest.seatId = null
+  })
+  
+  // 按分区分组嘉宾
+  const guestsBySection = {}
+  guests.value.forEach(guest => {
+    if (!guestsBySection[guest.assignedSection]) {
+      guestsBySection[guest.assignedSection] = []
+    }
+    guestsBySection[guest.assignedSection].push(guest)
+  })
+  
+  // 获取分区列表（按配置中的顺序）
+  const sectionNames = props.seatSections.map(s => s.name)
+  
+  // 收集所有未分配的嘉宾
+  let unassignedGuests = [...guests.value]
+  
+  // 按分区顺序分配座位
+  for (let sectionIndex = 0; sectionIndex < sectionNames.length; sectionIndex++) {
+    const currentSection = sectionNames[sectionIndex]
+    const sectionSeats = seats.value.filter(seat => seat.section === currentSection)
+    
+    // 找出属于当前分区且未分配的嘉宾
+    const sectionGuests = unassignedGuests.filter(guest => guest.assignedSection === currentSection)
+    
+    // 如果没有更多未分配的嘉宾，退出
+    if (unassignedGuests.length === 0) break
+    
+    // 如果当前分区没有嘉宾，但有未分配的嘉宾，这些嘉宾属于其他分区
+    // 在这种情况下，我们分配其他分区的嘉宾到当前分区的座位
+    const guestsToAssign = sectionGuests.length > 0 ? sectionGuests : 
+                          // 如果没有当前分区的嘉宾，分配第一个未分配的嘉宾
+                          [unassignedGuests[0]]
+    
+    // 分配尽可能多的嘉宾到当前分区的座位
+    const seatsToAssign = Math.min(sectionSeats.length, guestsToAssign.length)
+    
+    for (let i = 0; i < seatsToAssign; i++) {
+      const seat = sectionSeats[i]
+      const guest = guestsToAssign[i]
+      
+      seat.guestId = guest.id
+      seat.guestNumber = guest.number
+      seat.guestName = guest.name
+      seat.guestUnit = guest.unit
+      seat.assignedSection = guest.assignedSection  // 保持原始分区
+      seat.sectionColor = sectionColors.value[guest.assignedSection]  // 使用原始分区颜色
+      guest.seatId = seat.id
+      
+      // 从未分配列表中移除
+      const guestIndex = unassignedGuests.findIndex(g => g.id === guest.id)
+      if (guestIndex !== -1) {
+        unassignedGuests.splice(guestIndex, 1)
+      }
+    }
+    
+    // 如果当前分区座位不足，剩余嘉宾将在下一个分区继续分配
+    // （他们已经在unassignedGuests中，循环会继续处理）
+  }
+  
+  // 如果还有未分配的嘉宾（座位总数不足），记录警告
+  if (unassignedGuests.length > 0) {
+    console.warn(`${unassignedGuests.length} 位嘉宾未能分配到座位`)
+  }
+}
+
+/**
+ * 获取座位颜色
+ * @param {Object} seat - 座位对象
+ * @returns {Object} - 包含颜色信息的对象
+ */
+function getSeatColor(seat) {
+  if (seat.guestId) {
+    // 有嘉宾的座位，使用分区颜色
+    const baseColor = seat.sectionColor || '#409eff'
+    return {
+      base: baseColor,
+      dark: adjustColor(baseColor, -20),
+      light: adjustColor(baseColor, 20)
+    }
+  } else {
+    // 未安排嘉宾的座位，统一使用淡淡的浅蓝色
+    return {
+      base: '#d4ebff',
+      dark: '#b0d4ff',
+      light: '#f0f8ff'
+    }
+  }
+}
+
+/**
+ * 调整颜色亮度
+ * @param {string} hex - 十六进制颜色
+ * @param {number} percent - 调整百分比（正数为变亮，负数为变暗）
+ * @returns {string} - 调整后的颜色
+ */
+function adjustColor(hex, percent) {
+  const num = parseInt(hex.slice(1), 16)
+  const amt = Math.round(2.55 * percent)
+  const R = (num >> 16) + amt
+  const G = ((num >> 8) & 0x00FF) + amt
+  const B = (num & 0x0000FF) + amt
+  
+  return '#' + (
+    0x1000000 +
+    (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
+    (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
+    (B < 255 ? (B < 1 ? 0 : B) : 255)
+  ).toString(16).slice(1)
+}
+
+/**
+ * 处理座位点击事件
+ * @param {MouseEvent} event - 鼠标事件
+ */
+function handleSeatClick(event) {
+  const canvas = canvasRef.value
+  if (!canvas) return
+  
+  const rect = canvas.getBoundingClientRect()
+  const mouseX = event.clientX - rect.left
+  const mouseY = event.clientY - rect.top
+  
+  // 查找点击的座位
+  const clickedSeat = seats.value.find(seat => 
+    mouseX >= seat.x && mouseX <= seat.x + seat.width &&
+    mouseY >= seat.y && mouseY <= seat.y + seat.height
+  )
+  
+  if (clickedSeat) {
+    if (selectedSeatId.value === clickedSeat.id) {
+      // 取消选中
+      selectedSeatId.value = null
+    } else {
+      // 选中新座位
+      selectedSeatId.value = clickedSeat.id
+    }
+    drawSeats()
+  }
+}
+
+/**
+ * 处理座位拖拽开始
+ * @param {MouseEvent} event - 鼠标事件
+ */
+function handleSeatDragStart(event) {
+  const canvas = canvasRef.value
+  if (!canvas) return
+  
+  const rect = canvas.getBoundingClientRect()
+  const mouseX = event.clientX - rect.left
+  const mouseY = event.clientY - rect.top
+  
+  // 查找拖拽的座位
+  const draggedSeat = seats.value.find(seat => 
+    mouseX >= seat.x && mouseX <= seat.x + seat.width &&
+    mouseY >= seat.y && mouseY <= seat.y + seat.height
+  )
+  
+  if (draggedSeat && draggedSeat.guestId) {
+    dragSourceSeatId.value = draggedSeat.id
+    isDraggingSeat.value = true
+  }
+}
+
+/**
+ * 处理座位拖拽结束
+ * @param {MouseEvent} event - 鼠标事件
+ */
+function handleSeatDragEnd(event) {
+  if (!isDraggingSeat.value || !dragSourceSeatId.value) return
+  
+  const canvas = canvasRef.value
+  if (!canvas) return
+  
+  const rect = canvas.getBoundingClientRect()
+  const mouseX = event.clientX - rect.left
+  const mouseY = event.clientY - rect.top
+  
+  // 查找目标座位
+  const targetSeat = seats.value.find(seat => 
+    mouseX >= seat.x && mouseX <= seat.x + seat.width &&
+    mouseY >= seat.y && mouseY <= seat.y + seat.height
+  )
+  
+  if (targetSeat && targetSeat.id !== dragSourceSeatId.value) {
+    dragTargetSeatId.value = targetSeat.id
+    swapGuestSeats()
+  }
+  
+  // 重置拖拽状态
+  isDraggingSeat.value = false
+  dragSourceSeatId.value = null
+  dragTargetSeatId.value = null
+}
+
+/**
+ * 交换两个座位上的嘉宾信息
+ */
+function swapGuestSeats() {
+  const sourceSeat = seats.value.find(s => s.id === dragSourceSeatId.value)
+  const targetSeat = seats.value.find(s => s.id === dragTargetSeatId.value)
+  
+  if (!sourceSeat || !targetSeat) return
+  
+  // 交换嘉宾信息
+  const tempGuestId = sourceSeat.guestId
+  const tempGuestNumber = sourceSeat.guestNumber
+  const tempGuestName = sourceSeat.guestName
+  const tempGuestUnit = sourceSeat.guestUnit
+  const tempAssignedSection = sourceSeat.assignedSection
+  const tempSectionColor = sourceSeat.sectionColor
+  
+  sourceSeat.guestId = targetSeat.guestId
+  sourceSeat.guestNumber = targetSeat.guestNumber
+  sourceSeat.guestName = targetSeat.guestName
+  sourceSeat.guestUnit = targetSeat.guestUnit
+  sourceSeat.assignedSection = targetSeat.assignedSection
+  sourceSeat.sectionColor = targetSeat.sectionColor
+  
+  targetSeat.guestId = tempGuestId
+  targetSeat.guestNumber = tempGuestNumber
+  targetSeat.guestName = tempGuestName
+  targetSeat.guestUnit = tempGuestUnit
+  targetSeat.assignedSection = tempAssignedSection
+  targetSeat.sectionColor = tempSectionColor
+  
+  // 更新嘉宾的座位ID
+  if (sourceSeat.guestId) {
+    const sourceGuest = guests.value.find(g => g.id === sourceSeat.guestId)
+    if (sourceGuest) sourceGuest.seatId = sourceSeat.id
+  }
+  
+  if (targetSeat.guestId) {
+    const targetGuest = guests.value.find(g => g.id === targetSeat.guestId)
+    if (targetGuest) targetGuest.seatId = targetSeat.id
+  }
+  
+  drawSeats()
+}
+
+/**
+ * 获取当前选中的座位
+ * @returns {Object|null} - 选中的座位对象或null
+ */
+function getSelectedSeat() {
+  if (!selectedSeatId.value) return null
+  return seats.value.find(seat => seat.id === selectedSeatId.value)
+}
+
+/**
+ * 触发文件输入框点击事件
+ * 安全地访问DOM元素，避免在模板中直接使用document
+ */
+function triggerFileInput() {
+  // 使用nextTick确保DOM已更新
+  nextTick(() => {
+    // 安全检查：确保在浏览器环境中
+    if (typeof document !== 'undefined') {
+      const fileInput = document.getElementById('guest-file-input')
+      if (fileInput) {
+        fileInput.click()
+      }
+    }
+  })
+}
 </script>
 
 <template>
@@ -695,6 +1395,20 @@ function resetZoomAndPan() {
         <button @click="resetSeats">清空座位</button>
         <button @click="randomizeSeats">随机占用</button>
         <button @click="resetZoomAndPan">重置缩放</button>
+        
+        <!-- 嘉宾信息上传 -->
+        <div class="file-upload-wrapper">
+          <input 
+            type="file" 
+            id="guest-file-input"
+            accept=".xlsx,.xls"
+            @change="handleFileUpload"
+            style="display: none"
+          />
+          <button @click="triggerFileInput" class="upload-button">
+            📄 上传嘉宾名单
+          </button>
+        </div>
       </div>
     </div>
     
@@ -704,14 +1418,29 @@ function resetZoomAndPan() {
         class="seat-canvas"
       ></canvas>
       
+      <!-- 嘉宾信息面板（悬浮在左上角） -->
+      <div v-if="selectedSeatId" class="guest-info-panel floating-panel">
+        <h3>嘉宾信息</h3>
+        <div class="guest-info-content">
+          <div v-if="getSelectedSeat()?.guestId" class="guest-details">
+            <p><strong>编号：</strong>{{ getSelectedSeat()?.guestNumber }}</p>
+            <p><strong>姓名：</strong>{{ getSelectedSeat()?.guestName || '未填写' }}</p>
+            <p><strong>工作单位：</strong>{{ getSelectedSeat()?.guestUnit || '未填写' }}</p>
+            <p><strong>分配分区：</strong>{{ getSelectedSeat()?.assignedSection }}</p>
+            <p><strong>座位位置：</strong>分区 {{ getSelectedSeat()?.section }}，第 {{ getSelectedSeat()?.row }} 排，第 {{ getSelectedSeat()?.col }} 列</p>
+          </div>
+          <div v-else class="empty-seat">
+            <p>此座位暂无嘉宾</p>
+            <p>座位位置：分区 {{ getSelectedSeat()?.section }}，第 {{ getSelectedSeat()?.row }} 排，第 {{ getSelectedSeat()?.col }} 列</p>
+          </div>
+        </div>
+        <button @click="selectedSeatId = null" class="close-button">关闭</button>
+      </div>
+      
       <div class="legend">
         <div class="legend-item">
           <span class="color-box available"></span>
-          <span>可用座位</span>
-        </div>
-        <div class="legend-item">
-          <span class="color-box occupied"></span>
-          <span>已占用</span>
+          <span>空座位</span>
         </div>
         <div class="legend-item">
           <span class="color-box section"></span>
@@ -721,121 +1450,263 @@ function resetZoomAndPan() {
     </div>
     
     <div class="instructions">
-      <p>提示：点击平面图上的座位可以切换占用状态（待实现）</p>
+      <p>提示：点击座位可以查看嘉宾信息，拖拽有嘉宾的座位可以交换位置</p>
+
     </div>
   </div>
 </template>
 
 <style scoped>
 .floor-plan {
-  background-color: white;
-  padding: 10px;
-  border-radius: 0;
-  box-shadow: none;
+  background: var(--neumorphism-bg);
+  padding: 25px;
+  border-radius: var(--neumorphism-radius-lg);
   height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-shadow: 8px 8px 16px var(--neumorphism-shadow-dark),
+              -8px -8px 16px var(--neumorphism-shadow-light);
 }
 
 .floor-plan-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 10px;
+  margin-bottom: 25px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid rgba(64, 158, 255, 0.2);
 }
 
 .floor-plan-header h2 {
   margin: 0;
-  color: #333;
+  color: #2c3e50;
+  font-size: 24px;
+  font-weight: 700;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .controls {
   display: flex;
-  gap: 10px;
+  gap: 12px;
 }
 
 .controls button {
-  padding: 8px 16px;
-  background-color: #409eff;
-  color: white;
+  padding: 12px 20px;
+  background: var(--neumorphism-bg);
+  color: var(--neumorphism-primary);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--neumorphism-radius-sm);
   cursor: pointer;
   font-size: 14px;
-  transition: background-color 0.2s;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 4px 4px 8px var(--neumorphism-shadow-dark),
+              -4px -4px 8px var(--neumorphism-shadow-light);
 }
 
 .controls button:hover {
-  background-color: #337ecc;
+  box-shadow: 6px 6px 12px var(--neumorphism-shadow-dark),
+              -6px -6px 12px var(--neumorphism-shadow-light);
+  color: var(--neumorphism-primary-dark);
+}
+
+.controls button:active {
+  box-shadow: inset 2px 2px 4px var(--neumorphism-shadow-dark),
+              inset -2px -2px 4px var(--neumorphism-shadow-light);
 }
 
 .canvas-container {
   flex: 1;
   position: relative;
-  background-color: #f8f9fa;
+  background: var(--neumorphism-bg);
+  border-radius: var(--neumorphism-radius);
   overflow: auto;
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 0;
+  padding: 20px;
+  box-shadow: inset 4px 4px 8px var(--neumorphism-shadow-dark),
+              inset -4px -4px 8px var(--neumorphism-shadow-light);
 }
 
 .seat-canvas {
-  background-color: white;
-  border: none;
+  background: var(--neumorphism-bg);
+  border-radius: var(--neumorphism-radius-sm);
   max-width: 100%;
   max-height: 100%;
+  box-shadow: 4px 4px 8px var(--neumorphism-shadow-dark),
+              -4px -4px 8px var(--neumorphism-shadow-light);
 }
 
 .legend {
   position: absolute;
-  bottom: 20px;
-  left: 20px;
-  background-color: rgba(255, 255, 255, 0.9);
-  padding: 10px 15px;
-  border-radius: 4px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  bottom: 30px;
+  left: 30px;
+  background: var(--neumorphism-bg);
+  padding: 18px 24px;
+  border-radius: var(--neumorphism-radius);
+  box-shadow: 6px 6px 12px var(--neumorphism-shadow-dark),
+              -6px -6px 12px var(--neumorphism-shadow-light);
   display: flex;
-  gap: 15px;
+  gap: 20px;
+  z-index: 10;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
   font-size: 14px;
+  font-weight: 500;
+  color: #555;
 }
 
 .color-box {
-  width: 16px;
-  height: 16px;
-  border: 1px solid #333;
-  border-radius: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--neumorphism-radius-sm);
+  box-shadow: 3px 3px 6px var(--neumorphism-shadow-dark),
+              -3px -3px 6px var(--neumorphism-shadow-light);
 }
 
 .color-box.available {
-  background-color: #67c23a;
+  background: #d4ebff;
 }
 
 .color-box.occupied {
-  background-color: #f56c6c;
+  background: #d4ebff;
 }
 
 .color-box.section {
-  background-color: #409eff;
-  opacity: 0.3;
+  background: var(--neumorphism-primary);
+  opacity: 0.5;
 }
 
 .instructions {
-  margin-top: 20px;
-  padding: 10px;
-  background-color: #f0f9ff;
-  border-radius: 4px;
-  border-left: 4px solid #409eff;
+  margin-top: 25px;
+  padding: 18px 24px;
+  background: var(--neumorphism-bg);
+  border-radius: var(--neumorphism-radius);
+  border-left: 5px solid var(--neumorphism-primary);
   font-size: 14px;
   color: #666;
+  font-weight: 500;
+  box-shadow: 4px 4px 8px var(--neumorphism-shadow-dark),
+              -4px -4px 8px var(--neumorphism-shadow-light);
+}
+
+/* 上传按钮样式 */
+.file-upload-wrapper {
+  display: inline-block;
+}
+
+.upload-button {
+  padding: 12px 20px;
+  background: var(--neumorphism-bg);
+  color: var(--neumorphism-warning);
+  border: none;
+  border-radius: var(--neumorphism-radius-sm);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 4px 4px 8px var(--neumorphism-shadow-dark),
+              -4px -4px 8px var(--neumorphism-shadow-light);
+}
+
+.upload-button:hover {
+  box-shadow: 6px 6px 12px var(--neumorphism-shadow-dark),
+              -6px -6px 12px var(--neumorphism-shadow-light);
+  color: #e6a23c;
+}
+
+.upload-button:active {
+  box-shadow: inset 2px 2px 4px var(--neumorphism-shadow-dark),
+              inset -2px -2px 4px var(--neumorphism-shadow-light);
+}
+
+/* 嘉宾信息面板样式 */
+.guest-info-panel {
+  margin-top: 20px;
+  padding: 20px;
+  background: var(--neumorphism-bg);
+  border-radius: var(--neumorphism-radius);
+  box-shadow: 4px 4px 8px var(--neumorphism-shadow-dark),
+              -4px -4px 8px var(--neumorphism-shadow-light);
+  border-top: 5px solid var(--neumorphism-primary);
+}
+
+/* 悬浮面板样式（显示在画布左上角） */
+.guest-info-panel.floating-panel {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 100;
+  margin-top: 0;
+  width: 320px;
+  max-width: calc(100% - 40px);
+}
+
+.guest-info-panel h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #2c3e50;
+  font-size: 18px;
+  font-weight: 600;
+  border-bottom: 2px solid rgba(64, 158, 255, 0.2);
+  padding-bottom: 10px;
+}
+
+.guest-info-content {
+  margin-bottom: 15px;
+}
+
+.guest-details p,
+.empty-seat p {
+  margin: 8px 0;
+  color: #555;
+  font-size: 14px;
+}
+
+.guest-details strong,
+.empty-seat strong {
+  color: #333;
+  min-width: 80px;
+  display: inline-block;
+}
+
+.close-button {
+  padding: 10px 18px;
+  background: var(--neumorphism-bg);
+  color: var(--neumorphism-primary);
+  border: none;
+  border-radius: var(--neumorphism-radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 3px 3px 6px var(--neumorphism-shadow-dark),
+              -3px -3px 6px var(--neumorphism-shadow-light);
+}
+
+.close-button:hover {
+  box-shadow: 4px 4px 8px var(--neumorphism-shadow-dark),
+              -4px -4px 8px var(--neumorphism-shadow-light);
+  color: var(--neumorphism-primary-dark);
+}
+
+.close-button:active {
+  box-shadow: inset 2px 2px 4px var(--neumorphism-shadow-dark),
+              inset -2px -2px 4px var(--neumorphism-shadow-light);
+}
+
+/* 拖拽提示 */
+.drag-hint {
+  font-size: 12px;
+  color: #888;
+  margin-top: 10px;
+  font-style: italic;
 }
 </style>

@@ -170,7 +170,7 @@ function handleSaveConfiguration(configData) {
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background-color: #f5f7fa;
+  background-color: var(--neumorphism-bg);
   color: #333;
 }
 
@@ -178,23 +178,29 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  padding: 20px;
+  background-color: var(--neumorphism-bg);
 }
 
 .app-header {
-  background-color: white;
-  padding: 16px 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  background: var(--neumorphism-bg);
+  padding: 20px 30px;
+  border-radius: var(--neumorphism-radius-lg);
+  box-shadow: 8px 8px 16px var(--neumorphism-shadow-dark),
+              -8px -8px 16px var(--neumorphism-shadow-light);
   display: flex;
   justify-content: space-between;
   align-items: center;
   z-index: 100;
+  margin-bottom: 20px;
 }
 
 .app-header h1 {
-  font-size: 24px;
-  font-weight: 600;
+  font-size: 28px;
+  font-weight: 700;
   color: #2c3e50;
   margin: 0;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .header-info {
@@ -205,30 +211,39 @@ body {
 }
 
 .meeting-info {
-  padding: 4px 12px;
-  background-color: #f0f9ff;
-  border-radius: 4px;
-  border-left: 3px solid #409eff;
+  padding: 10px 18px;
+  background: var(--neumorphism-bg);
+  border-radius: var(--neumorphism-radius-sm);
+  box-shadow: 4px 4px 8px var(--neumorphism-shadow-dark),
+              -4px -4px 8px var(--neumorphism-shadow-light);
+  border-left: 4px solid var(--neumorphism-primary);
+  font-weight: 500;
+  color: var(--neumorphism-primary-dark);
 }
 
 .time-info {
-  padding: 4px 12px;
-  background-color: #fff7e6;
-  border-radius: 4px;
-  border-left: 3px solid #fa8c16;
+  padding: 10px 18px;
+  background: var(--neumorphism-bg);
+  border-radius: var(--neumorphism-radius-sm);
+  box-shadow: 4px 4px 8px var(--neumorphism-shadow-dark),
+              -4px -4px 8px var(--neumorphism-shadow-light);
+  border-left: 4px solid var(--neumorphism-warning);
+  font-weight: 500;
+  color: #e6a23c;
 }
 
 .app-main {
   flex: 1;
   overflow: auto;
+  padding: 10px 0;
 }
 
 .layout-grid {
   display: grid;
-  grid-template-columns: 350px 1fr;
-  gap: 12px;
+  grid-template-columns: 450px 1fr;
+  gap: 20px;
   height: 100%;
-  max-height: calc(100vh - 140px);
+  max-height: calc(100vh - 180px);
 }
 
 .left-panel, .right-panel {
@@ -236,27 +251,50 @@ body {
 }
 
 .left-panel {
-  padding: 16px;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-  overflow-y: auto;
+  padding: 0;
+  background: transparent;
+  border-radius: var(--neumorphism-radius-lg);
+  overflow: hidden;
+  box-shadow: 8px 8px 16px var(--neumorphism-shadow-dark),
+              -8px -8px 16px var(--neumorphism-shadow-light);
+}
+
+.right-panel {
+  background: transparent;
+  border-radius: var(--neumorphism-radius-lg);
+  overflow: hidden;
+  box-shadow: 8px 8px 16px var(--neumorphism-shadow-dark),
+              -8px -8px 16px var(--neumorphism-shadow-light);
 }
 
 @media (max-width: 1200px) {
   .layout-grid {
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr;
+    gap: 15px;
+  }
+  
+  .app-header {
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+  }
+  
+  .header-info {
+    flex-wrap: wrap;
+    justify-content: center;
   }
 }
 
 .app-footer {
-  background-color: white;
-  padding: 16px 24px;
+  background: var(--neumorphism-bg);
+  padding: 20px 30px;
   text-align: center;
   font-size: 14px;
   color: #888;
-  border-top: 1px solid #eee;
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+  border-radius: var(--neumorphism-radius-lg);
+  box-shadow: 8px 8px 16px var(--neumorphism-shadow-dark),
+              -8px -8px 16px var(--neumorphism-shadow-light);
+  margin-top: 20px;
 }
 </style>

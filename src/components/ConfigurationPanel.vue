@@ -288,42 +288,53 @@ function saveConfiguration() {
 
 <style scoped>
 .configuration-panel {
-  background-color: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  background: var(--neumorphism-bg);
+  padding: 30px;
   height: 100%;
   overflow-y: auto;
 }
 
 .configuration-panel h2 {
   margin-top: 0;
-  margin-bottom: 20px;
-  color: #333;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 10px;
+  margin-bottom: 30px;
+  color: #2c3e50;
+  font-size: 24px;
+  font-weight: 700;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+  padding-bottom: 15px;
+  border-bottom: 2px solid rgba(64, 158, 255, 0.2);
 }
 
 .section {
   margin-bottom: 30px;
-  padding: 20px;
-  background-color: #f8f9fa;
-  border-radius: 6px;
-  border-left: 4px solid #409eff;
+  padding: 25px;
+  background: var(--neumorphism-bg);
+  border-radius: var(--neumorphism-radius);
+  box-shadow: 6px 6px 12px var(--neumorphism-shadow-dark),
+              -6px -6px 12px var(--neumorphism-shadow-light);
+  border-left: 5px solid var(--neumorphism-primary);
+  transition: box-shadow 0.3s ease;
+}
+
+.section:hover {
+  box-shadow: 8px 8px 16px var(--neumorphism-shadow-dark),
+              -8px -8px 16px var(--neumorphism-shadow-light);
 }
 
 .section h3 {
   margin-top: 0;
-  margin-bottom: 15px;
+  margin-bottom: 20px;
   color: #2c3e50;
-  font-size: 18px;
+  font-size: 20px;
+  font-weight: 600;
 }
 
 .section h4 {
   margin-top: 0;
   margin-bottom: 15px;
   color: #555;
-  font-size: 16px;
+  font-size: 17px;
+  font-weight: 600;
 }
 
 .seat-section h4 {
@@ -334,79 +345,110 @@ function saveConfiguration() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  margin-bottom: 20px;
 }
 
 .section-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .section-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .collapse-button {
-  background: none;
+  background: var(--neumorphism-bg);
   border: none;
-  font-size: 12px;
+  font-size: 14px;
   cursor: pointer;
-  padding: 2px 6px;
+  padding: 8px 12px;
   color: #666;
-  border-radius: 3px;
+  border-radius: var(--neumorphism-radius-sm);
+  box-shadow: 3px 3px 6px var(--neumorphism-shadow-dark),
+              -3px -3px 6px var(--neumorphism-shadow-light);
+  transition: all 0.3s ease;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .collapse-button:hover {
-  background-color: #f0f0f0;
+  box-shadow: 4px 4px 8px var(--neumorphism-shadow-dark),
+              -4px -4px 8px var(--neumorphism-shadow-light);
+}
+
+.collapse-button:active {
+  box-shadow: inset 2px 2px 4px var(--neumorphism-shadow-dark),
+              inset -2px -2px 4px var(--neumorphism-shadow-light);
 }
 
 .form-item {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .form-item label {
   display: block;
-  margin-bottom: 6px;
-  font-weight: 500;
+  margin-bottom: 8px;
+  font-weight: 600;
   color: #555;
+  font-size: 14px;
+  white-space: nowrap;
 }
 
 .form-item input[type="text"],
 .form-item input[type="number"],
 .form-item select {
   width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: 14px 16px;
+  background: var(--neumorphism-bg);
+  border: none;
+  border-radius: var(--neumorphism-radius-sm);
+  box-shadow: inset 3px 3px 6px var(--neumorphism-shadow-dark),
+              inset -3px -3px 6px var(--neumorphism-shadow-light);
   font-size: 14px;
   box-sizing: border-box;
+  transition: all 0.3s ease;
 }
 
 .form-item input:focus,
 .form-item select:focus {
   outline: none;
-  border-color: #409eff;
+  box-shadow: inset 4px 4px 8px var(--neumorphism-shadow-dark),
+              inset -4px -4px 8px var(--neumorphism-shadow-light);
 }
 
 .form-item input[type="checkbox"] {
-  margin-right: 8px;
+  margin-right: 10px;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--neumorphism-primary);
 }
 
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
 }
 
 .seat-section {
-  margin-bottom: 20px;
-  padding: 12px;
-  background-color: white;
-  border-radius: 4px;
-  border: 1px solid #e9ecef;
+  margin-bottom: 25px;
+  padding: 20px;
+  background: var(--neumorphism-bg);
+  border-radius: var(--neumorphism-radius);
+  box-shadow: 4px 4px 8px var(--neumorphism-shadow-dark),
+              -4px -4px 8px var(--neumorphism-shadow-light);
+  transition: all 0.3s ease;
+}
+
+.seat-section:hover {
+  box-shadow: 6px 6px 12px var(--neumorphism-shadow-dark),
+              -6px -6px 12px var(--neumorphism-shadow-light);
 }
 
 .seat-section:last-child {
@@ -414,57 +456,78 @@ function saveConfiguration() {
 }
 
 .add-button {
-  padding: 6px 12px;
-  background-color: #52c41a;
+  padding: 12px 20px;
+  background: var(--neumorphism-success);
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--neumorphism-radius-sm);
   font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.3s ease;
+  box-shadow: 4px 4px 8px rgba(82, 196, 26, 0.3),
+              -4px -4px 8px rgba(255, 255, 255, 0.8);
 }
 
 .add-button:hover {
-  background-color: #389e0d;
+  background: #389e0d;
+  box-shadow: 6px 6px 12px rgba(82, 196, 26, 0.4),
+              -6px -6px 12px rgba(255, 255, 255, 0.9);
 }
 
 .remove-button {
-  padding: 4px 10px;
-  background-color: #ff4d4f;
+  padding: 10px 18px;
+  background: var(--neumorphism-error);
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--neumorphism-radius-sm);
   font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.3s ease;
+  box-shadow: 4px 4px 8px rgba(255, 77, 79, 0.3),
+              -4px -4px 8px rgba(255, 255, 255, 0.8);
 }
 
 .remove-button:hover {
-  background-color: #d9363e;
+  background: #d9363e;
+  box-shadow: 6px 6px 12px rgba(255, 77, 79, 0.4),
+              -6px -6px 12px rgba(255, 255, 255, 0.9);
 }
 
 .save-button {
   width: 100%;
-  padding: 12px;
-  background-color: #409eff;
+  padding: 18px;
+  background: var(--neumorphism-primary);
   color: white;
   border: none;
-  border-radius: 4px;
-  font-size: 16px;
-  font-weight: 500;
+  border-radius: var(--neumorphism-radius);
+  font-size: 18px;
+  font-weight: 700;
   cursor: pointer;
-  margin-top: 20px;
-  transition: background-color 0.2s;
+  margin-top: 30px;
+  transition: all 0.3s ease;
+  box-shadow: 6px 6px 12px rgba(64, 158, 255, 0.3),
+              -6px -6px 12px rgba(255, 255, 255, 0.8);
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .save-button:hover {
-  background-color: #337ecc;
+  background: var(--neumorphism-primary-dark);
+  box-shadow: 8px 8px 16px rgba(64, 158, 255, 0.4),
+              -8px -8px 16px rgba(255, 255, 255, 0.9);
+}
+
+.save-button:active {
+  box-shadow: inset 3px 3px 6px rgba(0, 0, 0, 0.2),
+              inset -3px -3px 6px rgba(255, 255, 255, 0.8);
 }
 
 .compact-grid {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 15px;
 }
 
 .compact-grid .form-item {
@@ -474,7 +537,7 @@ function saveConfiguration() {
 .inline-group {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 15px;
 }
 
 .inline-group.three-columns {
@@ -486,11 +549,23 @@ function saveConfiguration() {
 }
 
 @media (max-width: 768px) {
+  .configuration-panel {
+    padding: 20px;
+  }
+  
+  .section {
+    padding: 20px;
+  }
+  
   .inline-group {
     grid-template-columns: 1fr;
   }
   
   .inline-group.three-columns {
+    grid-template-columns: 1fr;
+  }
+  
+  .form-grid {
     grid-template-columns: 1fr;
   }
 }
