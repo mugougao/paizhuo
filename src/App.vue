@@ -67,7 +67,7 @@ const seatSections = ref([
     previousSectionDistance: 2,
     rows: 5,
     maxContinuousSeats: 10,
-    seatLeftRightSpacing: 0.8,
+    seatLeftRightSpacing: 0,
     seatFrontBackSpacing: 1,
     seatLength: 0.5,
     seatWidth: 0.5,

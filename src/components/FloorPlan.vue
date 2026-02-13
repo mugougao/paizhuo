@@ -119,6 +119,107 @@ function updateCanvasSize() {
 }
 
 /**
+ * 获取鼠标在画布内部的坐标（考虑画布实际尺寸与CSS尺寸的差异）
+ * @param {MouseEvent} event - 鼠标事件
+ * @returns {{x: number, y: number}} - 画布内部坐标系中的坐标
+ */
+function getCanvasMousePosition(event) {
+  const canvas = canvasRef.value
+  if (!canvas) return { x: 0, y: 0 }
+  
+  const rect = canvas.getBoundingClientRect()
+  const scaleX = canvas.width / rect.width
+  const scaleY = canvas.height / rect.height
+  
+  return {
+    x: (event.clientX - rect.left) * scaleX,
+    y: (event.clientY - rect.top) * scaleY
+  }
+}
+
+/**
+ * 限制偏移量范围，防止会议室被拖出画布可视区域
+ * 考虑会议室最大尺寸80*80米，允许更大的拖动范围，特别是在放大时
+ */
+function clampOffsets() {
+  const canvas = canvasRef.value
+  if (!canvas) return
+  
+  const canvasWidth = canvas.width
+  const canvasHeight = canvas.height
+  
+  // 比例尺：1米 = 20像素
+  const scale = 20
+  
+  // 获取会议室实际尺寸
+  const roomWidth = props.roomSettings.width
+  const roomLength = props.roomSettings.length
+  
+  // 会议室最大可能尺寸（按80*80米考虑）
+  const maxRoomWidth = 80
+  const maxRoomLength = 80
+  
+  // 转换为像素尺寸
+  const roomWidthPx = roomWidth * scale
+  const roomLengthPx = roomLength * scale
+  const maxRoomWidthPx = maxRoomWidth * scale
+  const maxRoomLengthPx = maxRoomLength * scale
+  
+  // 计算缩放比例
+  const scaleX = canvasWidth / roomWidthPx
+  const scaleY = canvasHeight / roomLengthPx
+  const baseScale = Math.min(scaleX, scaleY) * 0.9
+  
+  // 会议室缩放后的实际尺寸
+  const roomScaledWidth = roomWidthPx * baseScale * zoom.value
+  const roomScaledHeight = roomLengthPx * baseScale * zoom.value
+  
+  // 最大会议室缩放后的尺寸（用于计算最大允许偏移量）
+  const maxRoomScaledWidth = maxRoomWidthPx * baseScale * zoom.value
+  const maxRoomScaledHeight = maxRoomLengthPx * baseScale * zoom.value
+  
+  // 计算最大允许偏移量
+  // 允许会议室边缘与画布边缘对齐，确保放大后能看到最右和最下部分
+  // 最小可见要求：确保会议室至少有5%在画布内可见
+  const minVisibleRatio = 0.05 // 至少5%可见
+  
+  // 当会议室尺寸小于画布时，确保至少minVisibleRatio部分可见
+  // 当会议室尺寸大于画布时，允许拖动到边缘对齐
+  let maxOffsetX, maxOffsetY
+  
+  if (roomScaledWidth <= canvasWidth) {
+    // 会议室宽度小于等于画布宽度：确保至少5%可见，允许中心在画布内移动
+    maxOffsetX = Math.max(0, (canvasWidth - roomScaledWidth * minVisibleRatio) / 2)
+  } else {
+    // 会议室宽度大于画布宽度：允许拖动到边缘对齐
+    // 最大偏移量 = (会议室宽度 - 画布宽度 * 最小可见比例) / 2
+    // 这样即使放大很多，也能看到会议室边缘
+    maxOffsetX = Math.max(0, (roomScaledWidth - canvasWidth * minVisibleRatio) / 2)
+  }
+  
+  if (roomScaledHeight <= canvasHeight) {
+    // 会议室高度小于等于画布高度：确保至少5%可见
+    maxOffsetY = Math.max(0, (canvasHeight - roomScaledHeight * minVisibleRatio) / 2)
+  } else {
+    // 会议室高度大于画布高度：允许拖动到边缘对齐
+    maxOffsetY = Math.max(0, (roomScaledHeight - canvasHeight * minVisibleRatio) / 2)
+  }
+  
+  // 基于最大会议室尺寸（80*80米）增加额外的拖动范围
+  // 这样即使实际会议室较小，放大后也能有足够的拖动空间
+  const extraOffsetFromMaxSizeX = Math.max(0, (maxRoomScaledWidth - roomScaledWidth) / 2)
+  const extraOffsetFromMaxSizeY = Math.max(0, (maxRoomScaledHeight - roomScaledHeight) / 2)
+  
+  // 最终最大允许偏移量
+  maxOffsetX += extraOffsetFromMaxSizeX
+  maxOffsetY += extraOffsetFromMaxSizeY
+  
+  // 限制偏移量范围
+  offsetX.value = Math.max(-maxOffsetX, Math.min(maxOffsetX, offsetX.value))
+  offsetY.value = Math.max(-maxOffsetY, Math.min(maxOffsetY, offsetY.value))
+}
+
+/**
  * 生成座位布局的核心算法
  * 根据配置参数计算座位位置，处理过道生成和空间分配
  * 算法步骤：
@@ -395,16 +496,22 @@ function generateSeats() {
             }
           }
         } else if (numBlocks === 1 && bestSeatCount > 1) {
-          // 单区块多座位：调整座位间距
+          // 单区块多座位：保持用户设置的座位间距，多余空间作为左右边距（居中）
           const totalSeatWidth = bestSeatCount * seatWidth
-          const totalSpacingWidth = sectionWidth - totalSeatWidth
-          const spacingBetweenSeats = totalSpacingWidth / (bestSeatCount - 1)
+          const totalUserSpacingWidth = seatSpacingX * (bestSeatCount - 1)
+          const totalOccupiedWidthWithSpacing = totalSeatWidth + totalUserSpacingWidth
+          const extraSpace = sectionWidth - totalOccupiedWidthWithSpacing
+          
+          // 如果用户设置的间距为0，座位紧挨着，多余空间作为左右边距（居中）
+          // 如果用户设置的间距大于0，保持该间距不变，多余空间作为左右边距（居中）
+          const leftMargin = extraSpace / 2
+          const spacingBetweenSeats = seatSpacingX
           
           currentX = sectionLeft
           seatCol = 1
           
           for (let seatInBlock = 0; seatInBlock < bestSeatCount; seatInBlock++) {
-            const seatX = sectionLeft + seatInBlock * (seatWidth + spacingBetweenSeats)
+            const seatX = sectionLeft + leftMargin + seatInBlock * (seatWidth + spacingBetweenSeats)
             
             const seatId = `S${sectionIndex + 1}-R${row + 1}-${seatCol}`
             const existingState = existingSeatsMap[seatId]
@@ -432,7 +539,7 @@ function generateSeats() {
             seatCol++
           }
           
-          currentX = sectionLeft + bestSeatCount * seatWidth + (bestSeatCount - 1) * spacingBetweenSeats
+          currentX = sectionLeft + leftMargin + bestSeatCount * seatWidth + (bestSeatCount - 1) * spacingBetweenSeats
         } else if (numBlocks === 1 && bestSeatCount === 1) {
           // 单区块单座位：居中或左对齐
           const seatX = sectionLeft
@@ -530,15 +637,15 @@ function drawSeats() {
   
   // 创建会议室背景渐变
   const roomGradient = ctx.createLinearGradient(roomStartX, roomStartY, roomStartX, roomStartY + roomLengthPxScaled)
-  roomGradient.addColorStop(0, '#f5f7fa')
-  roomGradient.addColorStop(0.5, '#eef2f6')
-  roomGradient.addColorStop(1, '#e4eaf2')
+  roomGradient.addColorStop(0, '#F8FAFC')
+  roomGradient.addColorStop(0.5, '#F1F5F9')
+  roomGradient.addColorStop(1, '#E2E8F0')
   
   ctx.fillStyle = roomGradient
   ctx.fillRect(roomStartX, roomStartY, roomWidthPxScaled, roomLengthPxScaled)
   
   // 绘制会议室边框（轻拟物风格）
-  ctx.strokeStyle = '#d1d9e6'
+  ctx.strokeStyle = '#CBD5E1'
   ctx.lineWidth = 3
   ctx.strokeRect(roomStartX, roomStartY, roomWidthPxScaled, roomLengthPxScaled)
   
@@ -576,20 +683,20 @@ function drawSeats() {
     
     // 创建舞台渐变（轻拟物风格）
     const stageGradient = ctx.createLinearGradient(stageX, stageY, stageX, stageY + stageLength)
-    stageGradient.addColorStop(0, 'rgba(255, 215, 0, 0.4)')
-    stageGradient.addColorStop(0.5, 'rgba(255, 215, 0, 0.5)')
-    stageGradient.addColorStop(1, 'rgba(255, 215, 0, 0.3)')
+    stageGradient.addColorStop(0, 'rgba(255, 152, 0, 0.4)')
+    stageGradient.addColorStop(0.5, 'rgba(255, 152, 0, 0.5)')
+    stageGradient.addColorStop(1, 'rgba(255, 152, 0, 0.3)')
     
     ctx.fillStyle = stageGradient
     ctx.fillRect(stageX, stageY, stageWidth, stageLength)
     
     // 舞台边框（外阴影）
-    ctx.strokeStyle = '#b8860b'
+    ctx.strokeStyle = '#F57C00'
     ctx.lineWidth = 2.5
     ctx.strokeRect(stageX, stageY, stageWidth, stageLength)
     
     // 舞台边框（内高光）
-    ctx.strokeStyle = '#ffd700'
+    ctx.strokeStyle = '#FFB74D'
     ctx.lineWidth = 1
     ctx.strokeRect(stageX + 1, stageY + 1, stageWidth - 2, stageLength - 2)
     
@@ -635,7 +742,7 @@ function drawSeats() {
     
     // 选中状态高亮
     if (seat.id === selectedSeatId.value) {
-      ctx.strokeStyle = '#ffd700'
+      ctx.strokeStyle = '#FF9800'
       ctx.lineWidth = 3
       ctx.strokeRect(seat.x - 2, seat.y - 2, seat.width + 4, seat.height + 4)
     }
@@ -666,7 +773,7 @@ function drawSeats() {
       ctx.beginPath()
       ctx.moveTo(sourceSeat.x + sourceSeat.width / 2, sourceSeat.y + sourceSeat.height / 2)
       ctx.lineTo(dragPosition.value.x, dragPosition.value.y)
-      ctx.strokeStyle = 'rgba(64, 158, 255, 0.7)'
+      ctx.strokeStyle = 'rgba(33, 150, 243, 0.7)'
       ctx.lineWidth = 2
       ctx.setLineDash([5, 3])
       ctx.stroke()
@@ -737,20 +844,20 @@ function drawSeats() {
     
     // 分区背景渐变（轻拟物风格）
     const sectionGradient = ctx.createLinearGradient(sectionLeft, currentY, sectionLeft, currentY + sectionHeight)
-    sectionGradient.addColorStop(0, 'rgba(64, 158, 255, 0.08)')
-    sectionGradient.addColorStop(0.5, 'rgba(64, 158, 255, 0.12)')
-    sectionGradient.addColorStop(1, 'rgba(64, 158, 255, 0.05)')
+    sectionGradient.addColorStop(0, 'rgba(144, 202, 249, 0.08)')
+    sectionGradient.addColorStop(0.5, 'rgba(144, 202, 249, 0.12)')
+    sectionGradient.addColorStop(1, 'rgba(144, 202, 249, 0.05)')
     
     ctx.fillStyle = sectionGradient
     ctx.fillRect(sectionLeft, currentY, sectionWidth, sectionHeight)
     
     // 分区边框（外阴影）
-    ctx.strokeStyle = '#337ecc'
+    ctx.strokeStyle = '#64B5F6'
     ctx.lineWidth = 1.5
     ctx.strokeRect(sectionLeft, currentY, sectionWidth, sectionHeight)
     
     // 分区边框（内高光）
-    ctx.strokeStyle = '#85c8ff'
+    ctx.strokeStyle = '#90CAF9'
     ctx.lineWidth = 0.5
     ctx.strokeRect(sectionLeft + 1, currentY + 1, sectionWidth - 2, sectionHeight - 2)
     
@@ -806,9 +913,7 @@ function handleWheel(event) {
   if (!canvas) return
   
   // 获取鼠标在Canvas中的相对位置
-  const rect = canvas.getBoundingClientRect()
-  const mouseX = event.clientX - rect.left
-  const mouseY = event.clientY - rect.top
+  const { x: mouseX, y: mouseY } = getCanvasMousePosition(event)
   
   // 计算缩放相关的几何参数
   const scale = 20
@@ -839,6 +944,9 @@ function handleWheel(event) {
   offsetX.value = mouseX - oldBaseOffsetX - worldX * (baseScale * zoom.value)
   offsetY.value = mouseY - oldBaseOffsetY - worldY * (baseScale * zoom.value)
   
+  // 限制偏移量范围
+  clampOffsets()
+  
   // 重新生成座位布局
   generateSeats()
 }
@@ -853,9 +961,7 @@ function handleMouseDown(event) {
   const canvas = canvasRef.value
   if (!canvas) return
   
-  const rect = canvas.getBoundingClientRect()
-  const mouseX = event.clientX - rect.left
-  const mouseY = event.clientY - rect.top
+  const { x: mouseX, y: mouseY } = getCanvasMousePosition(event)
   
   // 查找点击的座位
   const clickedSeat = seats.value.find(seat => 
@@ -902,6 +1008,9 @@ function handleMouseMove(event) {
     offsetX.value += deltaX
     offsetY.value += deltaY
     
+    // 限制偏移量范围
+    clampOffsets()
+    
     lastMouseX.value = event.clientX
     lastMouseY.value = event.clientY
     
@@ -913,9 +1022,7 @@ function handleMouseMove(event) {
     const canvas = canvasRef.value
     if (!canvas) return
     
-    const rect = canvas.getBoundingClientRect()
-    const mouseX = event.clientX - rect.left
-    const mouseY = event.clientY - rect.top
+    const { x: mouseX, y: mouseY } = getCanvasMousePosition(event)
     
     // 更新拖拽位置，用于视觉反馈
     dragPosition.value = { x: mouseX, y: mouseY }
@@ -937,9 +1044,7 @@ function handleMouseUp(event) {
     const canvas = canvasRef.value
     if (!canvas) return
     
-    const rect = canvas.getBoundingClientRect()
-    const mouseX = event.clientX - rect.left
-    const mouseY = event.clientY - rect.top
+    const { x: mouseX, y: mouseY } = getCanvasMousePosition(event)
     
     // 查找目标座位
     const targetSeat = seats.value.find(seat => 
@@ -1086,9 +1191,9 @@ function parseExcelData(file) {
  */
 function generateSectionColors() {
   const colors = [
-    '#409eff', '#67c23a', '#e6a23c', '#f56c6c', '#909399',
-    '#337ecc', '#5daf34', '#b88230', '#d9363e', '#757575',
-    '#53a8ff', '#85ce61', '#ebb563', '#f78989', '#a6a9ad'
+    '#90CAF9', '#A5D6A7', '#FFE082', '#EF9A9A', '#CE93D8',
+    '#80DEEA', '#FFCC80', '#F48FB1', '#81D4FA', '#C5E1A5',
+    '#B39DDB', '#FFAB91', '#80CBC4', '#E6EE9C', '#9FA8DA'
   ]
   
   const uniqueSections = [...new Set(guests.value.map(g => g.assignedSection))]
@@ -1199,11 +1304,11 @@ function getSeatColor(seat) {
       light: adjustColor(baseColor, 20)
     }
   } else {
-    // 未安排嘉宾的座位，统一使用淡淡的浅蓝色
+    // 未安排嘉宾的座位，使用柔和的浅蓝色
     return {
-      base: '#d4ebff',
-      dark: '#b0d4ff',
-      light: '#f0f8ff'
+      base: '#E3F2FD',
+      dark: '#BBDEFB',
+      light: '#F1F8FF'
     }
   }
 }
@@ -1237,9 +1342,7 @@ function handleSeatClick(event) {
   const canvas = canvasRef.value
   if (!canvas) return
   
-  const rect = canvas.getBoundingClientRect()
-  const mouseX = event.clientX - rect.left
-  const mouseY = event.clientY - rect.top
+  const { x: mouseX, y: mouseY } = getCanvasMousePosition(event)
   
   // 查找点击的座位
   const clickedSeat = seats.value.find(seat => 
@@ -1267,9 +1370,7 @@ function handleSeatDragStart(event) {
   const canvas = canvasRef.value
   if (!canvas) return
   
-  const rect = canvas.getBoundingClientRect()
-  const mouseX = event.clientX - rect.left
-  const mouseY = event.clientY - rect.top
+  const { x: mouseX, y: mouseY } = getCanvasMousePosition(event)
   
   // 查找拖拽的座位
   const draggedSeat = seats.value.find(seat => 
@@ -1293,9 +1394,7 @@ function handleSeatDragEnd(event) {
   const canvas = canvasRef.value
   if (!canvas) return
   
-  const rect = canvas.getBoundingClientRect()
-  const mouseX = event.clientX - rect.left
-  const mouseY = event.clientY - rect.top
+  const { x: mouseX, y: mouseY } = getCanvasMousePosition(event)
   
   // 查找目标座位
   const targetSeat = seats.value.find(seat => 
